@@ -15,6 +15,10 @@ int
 array_sum(int *arr, int n)
 {
 	// TODO: Your code here.
-	assert(0);
-	return -1;
+	// iterate and add element in arr to sum one by one
+	int sum = 0;
+	int i;
+	for (i = 0; i < n; i++){
+		sum += arr[i];	}
+	return sum;
 }

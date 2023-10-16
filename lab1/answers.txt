@@ -1,5 +1,5 @@
-Name:
-PERM #: 
+Name: Shuyi Wan
+PERM #: 8097610
 
 Collaborators (who you talked to about the lab, what you talked about):
 
@@ -13,6 +13,18 @@ Other acknowledgments:
 -------------------------------------------------------------------------------
 
 Responses to exercises (if any) that need to go into answers.txt:
+Exercise 5:
+No, it is not necesarrily to be correct. The schedule() pick the next runnable process to excecute
+and run() will reload all the relevent registers including %eax. When replaced run(current) with schedule(), the schedule() will
+not be necesarrily picking up the same process as in run(current). This would cause the wrongly
+reloading value in %eax.
+
+Exercise 7:
+
+Exercise 10:
+
+Exercise 11:
+
 
 
 Anything else you'd like us to know:
