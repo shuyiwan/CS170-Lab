@@ -28,10 +28,12 @@ it will check this waiting list and find the waiting process and pass the inform
 as runnable and corresponding waiting list spot will be reset to -1 to ready to use. 
 
 Exercise 9:
-
-Exercise 10:
+commit bfee1c14c595ee355b52a78af7e70ffb2a52c04a
+Author: Jason Wolfe <jason23@cs.utexas.edu>
 
 Exercise 11:
+commit 7377a1ca41ba69bd0eeab66b8c7e4d918269bf68
+Author: Shuyi Wan <shuyiwan@ucsb.edu>
 
 
 
