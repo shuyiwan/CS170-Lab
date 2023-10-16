@@ -20,6 +20,14 @@ not be necesarrily picking up the same process as in run(current). This would ca
 reloading value in %eax.
 
 Exercise 7:
+Basiclly, I can create a waiting list to handle this situation. The list called wait_list is created in the kernel.h
+and all the elements in it is initialized to -1. When the program is running, if there is a process need to be waiting,
+it will be marked as blocked and its process id will be stored in this waitng list (INT_SYS_WAIT). 
+When the current process finished running and ready to exit(INT_SYS_EXIT),
+it will check this waiting list and find the waiting process and pass the information to it. This waiting process will be marked
+as runnable and corresponding waiting list spot will be reset to -1 to ready to use. 
+
+Exercise 9:
 
 Exercise 10:
 

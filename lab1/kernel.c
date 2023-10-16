@@ -175,6 +175,10 @@ interrupt(registers_t *reg)
 		current->p_state = P_ZOMBIE;
 		current->p_exit_status = current->p_registers.reg_eax;
 		int i = 0;
+		// check if there is process waiting
+		// find the waiting process, pass the eax value to it
+		// set this waiting process to be runnable
+		// and clear the corresponding wait list spot
 		for (i; i < 15; i++){
 			pid_t id;
 			id = current->wait_list[i];
