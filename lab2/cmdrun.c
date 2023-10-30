@@ -217,117 +217,112 @@ cmd_exec(command_t *cmd, int *pass_pipefd)
 	//    Hint: Investigate fchdir().
 	/* Your code here */
 
-	pid = fork();
-	 if (pid == -1) 
-	        return -1;  //error check  	
+	if((pid = fork()) == -1)
+	 	return -1;  //error check  	
 
 	if (pid == 0) { // in child process
+		dup2(*pass_pipefd, STDIN_FILENO);  //set pipe fd to initial value 
 		int fd;
-		dup2(*pass_pipefd, STDIN_FILENO);  //set pipe fd to initial value      
-        	
-		//if we need to redirect something to a file
-        	if (cmd->redirect_filename[0]) {
+
+		// redirect stderr to fd	     	
+		if (cmd->redirect_filename[2] != NULL) {
+			fd = open(cmd->redirect_filename[2], O_CREAT | O_WRONLY, 0666);
+			dup2(fd, STDERR_FILENO);
+			close(fd);
+		}
+
+		//redirect stdin to fd
+		if (cmd->redirect_filename[0] != NULL) {
 			fd = open(cmd->redirect_filename[0], O_RDONLY);
 			dup2(fd, STDIN_FILENO);
 			close(fd);
 		}
 		
-		if (cmd->redirect_filename[2]) {
-			fd = open(cmd->redirect_filename[2], O_CREAT|O_WRONLY, 0666);
-			dup2(fd, STDERR_FILENO);
-			close(fd);
-		}
-		
-		//if it's pipe, let stdout be the output of pipe
-       		if (cmd->controlop == CMD_PIPE) {
-            		dup2(pipefd[1], STDOUT_FILENO);
-			close(pipefd[0]);
-        	} 
-		//else read from stdin and if there's a redirection, redirect to that file
-		else if (cmd->controlop != CMD_PIPE && cmd->redirect_filename[1] != NULL) {
+		// redirect stdout to fd if not using the pipe
+		if (cmd->controlop != CMD_PIPE && cmd->redirect_filename[1] != NULL) {
             		*pass_pipefd = STDIN_FILENO;
-			fd = open(cmd->redirect_filename[1], O_TRUNC|O_CREAT|O_WRONLY, 0666);
+			fd = open(cmd->redirect_filename[1], O_TRUNC | O_CREAT | O_WRONLY, 0666);
 			dup2(fd, STDOUT_FILENO);	
 			close(fd);	
 		}
-		 //if nothing needs to do, read from stdin and write to stdout
+		//if using the pipe, duplicate writing end fd to stdout
+       		else if (cmd->controlop == CMD_PIPE) {
+            		dup2(pipefd[1], STDOUT_FILENO);
+			close(pipefd[0]);
+        	} 	
+		 // if no need to redirect, do standard read and write
 	        else {
 	            *pass_pipefd = STDIN_FILENO;
 	            dup2(STDOUT_FILENO, 1);
         	}
 
-		
-		if (cmd->subshell) {
-            	
+		//	handle the case where there is the subshell, parenthese
+		if (cmd->subshell) {         	
 			exit(cmd_line_exec(cmd->subshell));
-		} 
-		else if (strcmp(cmd->argv[0], "cd") == 0) {
-			if (cmd->argv[1]) {
-				int fd = open(cmd->argv[1], O_RDONLY);
-				if (fd != -1){
-					close(fd);
-					if(cmd->argv[2])
-						fprintf(stderr, "cd: Syntax error! Wrong number of arguments!");
-					else{
-						chdir(cmd->argv[1] ? cmd->argv[1] : getenv("HOME"));
-						exit(0);
-					}
-				}
-				else {
-					exit(1);
-				}
-				exit(0);
-			}
-        	} 
-		else if (strcmp(cmd->argv[0], "exit") == 0){
+		}
+		// handle the "exit"
+		else if (!strcmp(cmd->argv[0], "exit")){
 			if(!cmd->argv[2])
 				exit(0);
 		}
+		// handle the "cd"
+		else if (!strcmp(cmd->argv[0], "cd")) {
+			if (cmd->argv[1]) { // open the corresponding file
+				int fd = open(cmd->argv[1], O_RDONLY);
+				if (fd != -1){
+					close(fd); 
+					if(cmd->argv[2]) // more than one argument
+						fprintf(stderr, "cd: Syntax error! Wrong number of arguments!");
+					else{
+						if (cmd->argv[1]) chdir(cmd->argv[1]);
+						else chdir(getenv("HOME"));
+					}
+				}
+				else exit(1); // file doesn't exits
+			}
+        	} 
+		// if other cases, execute with c function
 		else if(cmd->argv[0]){
 			exit(execvp(cmd->argv[0], &cmd->argv[0]));
 		}
-		else
-			exit(0);
-
+		else exit(0);
 	} 
-    	else { //father
-	int wp_status;
-	while (1) {
-        pid_t wpid = waitpid(-1, &wp_status, WNOHANG);
-	        if (wpid == -1) {
-	            perror("waitpid");
-	            exit(EXIT_FAILURE);
-	        }
-		 else if (wpid == 0) {
-	            break; // No more child processes
-	        }
-        // Do something with wp_status, such as logging or handling errors
-    	}
-        if (cmd->argv[0]) {
-			if (strcmp(cmd->argv[0], "cd") == 0) {
-				chdir(cmd->argv[1] ? cmd->argv[1] : getenv("HOME"));
-			} 
-			else if (strcmp(cmd->argv[0], "exit") == 0) {
-				if(!cmd->argv[2])
-					exit(0);
-			} 
-	}
-        
-        if (*pass_pipefd != STDIN_FILENO) {
-            close(*pass_pipefd);
-	    //close(pipefd[1]);
-	}
-        if (cmd->controlop == CMD_PIPE) {
-            *pass_pipefd = pipefd[0];
-	     close(pipefd[1]);
-        } 
-	else
-            *pass_pipefd = STDIN_FILENO;
-        
+
+	// in the parent process 
+    	else { 
+		int wp_status;
+		while (1) {
+        		pid_t wpid = waitpid(-1, &wp_status, WNOHANG);
+	        	if (wpid == -1) {
+	        		perror("waitpid");
+	        		exit(EXIT_FAILURE);
+	        	}
+			else if (wpid == 0) break; // done with child process
+    		}
+
+        	if (cmd->argv[0]) {
+			// handle the "cd"
+			if (!strcmp(cmd->argv[0], "cd")) {
+				if (cmd->argv[1]) chdir(cmd->argv[1]);
+				else chdir(getenv("HOME"));}
+			// handle the "exit"
+			else if (!strcmp(cmd->argv[0], "exit"))
+				if(!cmd->argv[2]) exit(0);
+		}
+   		
+		// return to parent, done with pipe     
+        	if (*pass_pipefd != STDIN_FILENO)
+           	 	close(*pass_pipefd); 
+
+		// done with pipe
+       		 if (cmd->controlop == CMD_PIPE) {
+			close(pipefd[1]);
+            		*pass_pipefd = pipefd[0];
+	     		} 
 		
-
-}
-
+		// reset the pipe fd to initial value
+		else *pass_pipefd = STDIN_FILENO;
+	}
 
 	// return the child process ID
 	return pid;
@@ -373,44 +368,43 @@ cmd_line_exec(command_t *cmdlist)
 
 		// EXERCISE: Fill out this function!
 		// If an error occurs in command_exec, feel free to abort().
-  
      
-            pid_t id = cmd_exec(cmdlist, &pipefd);
+            	pid_t pid = cmd_exec(cmdlist, &pipefd);
+            	if (pid <= 0) // error check
+                	abort();
 
-            if (id <= 0)
-                abort();
-            
-            switch(cmdlist->controlop)
-            {
-                case CMD_END:
-                case CMD_SEMICOLON:
-                        waitpid(id, &wp_status, 0);
-                        cmd_status = WEXITSTATUS(wp_status);
-                    break;
-                case CMD_AND:
-                    waitpid(id, &wp_status, 0);
-                    if (WEXITSTATUS(wp_status) != 0) {
-                        cmd_status = WEXITSTATUS(wp_status);
-                        goto done;
-                    }
-                    break;
-                case CMD_OR:
-                    waitpid(id, &wp_status, 0);
-                    if (WEXITSTATUS(wp_status) == 0) {
-                        cmd_status = 0; // EXIT_SUCCESS
-                        goto done;
-                    }
-                    break;
-                case CMD_BACKGROUND:
-                case CMD_PIPE:
-                    cmd_status = 0;
-                    break;
-            }
-	    cmdlist = cmdlist->next;
+                // pid_t waitpid(pid_t pid, int *stat_loc, int options);
+            	switch(cmdlist->controlop)
+            	{
+                	case CMD_END:
+
+                	case CMD_SEMICOLON:
+                        	waitpid(pid, &wp_status, 0);
+                        	cmd_status = WEXITSTATUS(wp_status);
+                    		break;
+
+                	case CMD_AND: // execute if first command is true
+                    		waitpid(pid, &wp_status, 0);
+                    		if (WEXITSTATUS(wp_status)) {
+                        		cmd_status = WEXITSTATUS(wp_status);
+                        		goto done;}
+                    		break;
+
+                	case CMD_OR: // execute if first command is false
+                    		waitpid(pid, &wp_status, 0);
+                    		if (!WEXITSTATUS(wp_status)) {
+                        		cmd_status = 0; 
+                        		goto done;}
+                    		break;
+
+                	case CMD_BACKGROUND:
+                	case CMD_PIPE:
+                    		cmd_status = 0;
+                    		break;
+            	}
+	    	cmdlist = cmdlist->next;
         }
-	
-	
-
+		
 done:
 	return cmd_status;
     
