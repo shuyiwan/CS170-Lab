@@ -218,67 +218,65 @@ cmd_exec(command_t *cmd, int *pass_pipefd)
 	/* Your code here */
 
 	pid = fork();
-	 if (pid == -1) 
-	        return -1;  //error check  	
+	if (pid == -1) 
+	    return -1;  //error check  	
 
-	if (pid == 0) { // in child process
-		int fd;
-		dup2(*pass_pipefd, STDIN_FILENO);  //set pipe fd to initial value      
+	if (pid == 0){ // in child process
+	    dup2(*pass_pipefd, STDIN_FILENO);  //set pipe fd to initial value 
+		int fileDescrib;
         	
 		//if we need to redirect something to a file
-        	if (cmd->redirect_filename[0]) {
-			fd = open(cmd->redirect_filename[0], O_RDONLY);
-			dup2(fd, STDIN_FILENO);
-			close(fd);
+        if (cmd->redirect_filename[0]){
+		    fileDescrib = open(cmd->redirect_filename[0], O_RDONLY);
+		    dup2(fileDescrib, STDIN_FILENO);
+		    close(fileDescrib);
 		}
 		
-		if (cmd->redirect_filename[2]) {
-			fd = open(cmd->redirect_filename[2], O_CREAT|O_WRONLY, 0666);
-			dup2(fd, STDERR_FILENO);
-			close(fd);
+		if (cmd->redirect_filename[2]){
+			fileDescrib = open(cmd->redirect_filename[2], O_CREAT|O_WRONLY, 0666);
+			dup2(fileDescrib, STDERR_FILENO);
+			close(fileDescrib);
 		}
 		
 		//if it's pipe, let stdout be the output of pipe
-       		if (cmd->controlop == CMD_PIPE) {
-            		dup2(pipefd[1], STDOUT_FILENO);
+       	if (cmd->controlop == CMD_PIPE) {
+            dup2(pipefd[1], STDOUT_FILENO);
 			close(pipefd[0]);
-        	} 
+        } 
 		//else read from stdin and if there's a redirection, redirect to that file
 		else if (cmd->controlop != CMD_PIPE && cmd->redirect_filename[1] != NULL) {
-            		*pass_pipefd = STDIN_FILENO;
-			fd = open(cmd->redirect_filename[1], O_TRUNC|O_CREAT|O_WRONLY, 0666);
-			dup2(fd, STDOUT_FILENO);	
-			close(fd);	
+            *pass_pipefd = STDIN_FILENO;
+			fileDescrib = open(cmd->redirect_filename[1], O_TRUNC|O_CREAT|O_WRONLY, 0666);
+			dup2(fileDescrib, STDOUT_FILENO);	
+			close(fileDescrib);	
 		}
 		 //if nothing needs to do, read from stdin and write to stdout
-	        else {
-	            *pass_pipefd = STDIN_FILENO;
-	            dup2(STDOUT_FILENO, 1);
-        	}
+	   else{
+	       *pass_pipefd = STDIN_FILENO;
+	        dup2(STDOUT_FILENO, 1);
+        }
 
 		
 		if (cmd->subshell) {
-            	
 			exit(cmd_line_exec(cmd->subshell));
 		} 
 		else if (strcmp(cmd->argv[0], "cd") == 0) {
 			if (cmd->argv[1]) {
-				int fd = open(cmd->argv[1], O_RDONLY);
-				if (fd != -1){
-					close(fd);
+				int fileDescrib = open(cmd->argv[1], O_RDONLY);
+				if (fileDescrib != -1){
+					close(fileDescrib);
 					if(cmd->argv[2])
 						fprintf(stderr, "cd: Syntax error! Wrong number of arguments!");
 					else{
 						chdir(cmd->argv[1] ? cmd->argv[1] : getenv("HOME"));
-						exit(0);
-					}
+						exit(0);}
 				}
 				else {
 					exit(1);
 				}
 				exit(0);
 			}
-        	} 
+        } 
 		else if (strcmp(cmd->argv[0], "exit") == 0){
 			if(!cmd->argv[2])
 				exit(0);
@@ -290,45 +288,39 @@ cmd_exec(command_t *cmd, int *pass_pipefd)
 			exit(0);
 
 	} 
-    	else { //father
-	int wp_status;
-	while (1) {
-        pid_t wpid = waitpid(-1, &wp_status, WNOHANG);
+    if (pid == 1) { // in the parent process
+	    int wp_status;
+	    while (1) {
+            pid_t wpid = waitpid(-1, &wp_status, WNOHANG);
 	        if (wpid == -1) {
 	            perror("waitpid");
 	            exit(EXIT_FAILURE);
 	        }
-		 else if (wpid == 0) {
+	        else if (wpid == 0)
 	            break; // No more child processes
-	        }
         // Do something with wp_status, such as logging or handling errors
     	}
-        if (cmd->argv[0]) {
+        if (cmd->argv[0]){
 			if (strcmp(cmd->argv[0], "cd") == 0) {
 				chdir(cmd->argv[1] ? cmd->argv[1] : getenv("HOME"));
 			} 
-			else if (strcmp(cmd->argv[0], "exit") == 0) {
-				if(!cmd->argv[2])
+			else if (strcmp(cmd->argv[0], "exit") == 0){
+			    if(!cmd->argv[2])
 					exit(0);
 			} 
-	}
+	    }
         
         if (*pass_pipefd != STDIN_FILENO) {
             close(*pass_pipefd);
 	    //close(pipefd[1]);
-	}
+	    }
         if (cmd->controlop == CMD_PIPE) {
             *pass_pipefd = pipefd[0];
-	     close(pipefd[1]);
+	        close(pipefd[1]);
         } 
-	else
+	    else
             *pass_pipefd = STDIN_FILENO;
-        
-		
-
-}
-
-
+    }
 	// return the child process ID
 	return pid;
 }
@@ -373,44 +365,38 @@ cmd_line_exec(command_t *cmdlist)
 
 		// EXERCISE: Fill out this function!
 		// If an error occurs in command_exec, feel free to abort().
-  
      
-            pid_t id = cmd_exec(cmdlist, &pipefd);
+        pid_t id = cmd_exec(cmdlist, &pipefd);
 
-            if (id <= 0)
-                abort();
+        if (id <= 0)
+            abort();
             
-            switch(cmdlist->controlop)
-            {
-                case CMD_END:
-                case CMD_SEMICOLON:
-                        waitpid(id, &wp_status, 0);
-                        cmd_status = WEXITSTATUS(wp_status);
-                    break;
-                case CMD_AND:
-                    waitpid(id, &wp_status, 0);
-                    if (WEXITSTATUS(wp_status) != 0) {
-                        cmd_status = WEXITSTATUS(wp_status);
-                        goto done;
-                    }
-                    break;
-                case CMD_OR:
-                    waitpid(id, &wp_status, 0);
-                    if (WEXITSTATUS(wp_status) == 0) {
-                        cmd_status = 0; // EXIT_SUCCESS
-                        goto done;
-                    }
-                    break;
-                case CMD_BACKGROUND:
-                case CMD_PIPE:
-                    cmd_status = 0;
-                    break;
-            }
+        switch(cmdlist->controlop){
+            case CMD_END:
+            case CMD_SEMICOLON:
+                waitpid(id, &wp_status, 0);
+                cmd_status = WEXITSTATUS(wp_status);
+                break;
+            case CMD_AND:
+                waitpid(id, &wp_status, 0);
+                if (WEXITSTATUS(wp_status) != 0) {
+                    cmd_status = WEXITSTATUS(wp_status);
+                    goto done;
+                }
+                break;
+            case CMD_OR:
+                waitpid(id, &wp_status, 0);
+                if (WEXITSTATUS(wp_status) == 0) {
+                    cmd_status = 0; // EXIT_SUCCESS
+                    goto done;
+                }
+                break;
+            case CMD_BACKGROUND:
+            case CMD_PIPE:
+                cmd_status = 0;
+                break;}
 	    cmdlist = cmdlist->next;
-        }
-	
-	
-
+    }
 done:
 	return cmd_status;
     
