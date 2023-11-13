@@ -1,7 +1,9 @@
 #include <cstring>
 #include <cstdlib>
+#include <iostream>
 
 #include "EStore.h"
+#include "RequestGenerator.h"
 #include "TaskQueue.h"
 
 class Simulation
@@ -43,6 +45,11 @@ static void*
 supplierGenerator(void* arg)
 {
     // TODO: Your code here.
+    Simulation *p_sim = (Simulation *)arg;
+    SupplierRequestGenerator generator(&p_sim->supplierTasks);
+    generator.enqueueTasks(p_sim->maxTasks, &(p_sim->store));
+    generator.enqueueStops(p_sim->numSuppliers);
+    sthread_exit();
     return NULL; // Keep compiler happy.
 }
 
@@ -74,6 +81,11 @@ static void*
 customerGenerator(void* arg)
 {
     // TODO: Your code here.
+    Simulation *p_sim = (Simulation *)arg;
+    CustomerRequestGenerator generator(&p_sim->customerTasks, p_sim->store.fineModeEnabled());
+    generator.enqueueTasks(p_sim->maxTasks, &(p_sim->store));
+    generator.enqueueStops(p_sim->numCustomers);
+    sthread_exit();
     return NULL; // Keep compiler happy.
 }
 
@@ -95,6 +107,13 @@ static void*
 supplier(void* arg)
 {
     // TODO: Your code here.
+    Simulation *p_sim = (Simulation *)arg;
+    while (true)
+    {
+        Task task = p_sim->supplierTasks.dequeue();
+        task.handler(task.arg);
+    }
+    
     return NULL; // Keep compiler happy.
 }
 
@@ -116,6 +135,12 @@ static void*
 customer(void* arg)
 {
     // TODO: Your code here.
+    Simulation *p_sim = (Simulation *)arg;
+    while(true)
+    {
+        Task task = p_sim->customerTasks.dequeue();
+        task.handler(task.arg);
+    }
     return NULL; // Keep compiler happy.
 }
 
@@ -146,6 +171,43 @@ static void
 startSimulation(int numSuppliers, int numCustomers, int maxTasks, bool useFineMode)
 {
     // TODO: Your code here.
+    cout << "START---------------------\n";
+    Simulation *simulation = new Simulation(useFineMode);
+    simulation->numCustomers = numCustomers;
+    simulation->maxTasks = maxTasks;
+    simulation->numSuppliers = numSuppliers;
+
+    sthread_t supplier_generator_t;
+    sthread_t customer_generator_t;
+
+    sthread_create(&supplier_generator_t, supplierGenerator, simulation);
+    sthread_create(&customer_generator_t, customerGenerator, simulation);
+
+    // creates the threads
+    sthread_t suppliers[numSuppliers];
+    sthread_t customers[numCustomers];
+    for (int i = 0; i < numSuppliers; i++)
+    {
+        sthread_create(&suppliers[i], supplier, simulation);
+    }
+    for (int i = 0; i < numCustomers; i++)
+    {
+        sthread_create(&customers[i], customer, simulation);
+    }
+
+    // implement the threads
+    sthread_join(supplier_generator_t);
+    sthread_join(customer_generator_t);
+    for (int i = 0; i < numSuppliers; i++)
+    {
+        sthread_join(suppliers[i]);
+    }
+    for (int i = 0; i < numCustomers; i++)
+    {
+        sthread_join(customers[i]);
+    }
+
+    cout << "ENDING----------------\n";
 }
 
 int main(int argc, char **argv)

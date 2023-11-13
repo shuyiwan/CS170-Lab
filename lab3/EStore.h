@@ -1,7 +1,7 @@
 #pragma once
 
 #include <vector>
-
+#include "sthread.h"
 #include "Request.h"
 
 /* 
@@ -69,6 +69,10 @@ class EStore {
     Item inventory[INVENTORY_SIZE];
     const bool fineMode;
     // TODO: More needed here.
+    double store_discount, shipping_cost;
+    smutex_t mutex;
+    scond_t condivar;
+    smutex_t mutexes[INVENTORY_SIZE]; // for buyManyItem 
 
     public:
 

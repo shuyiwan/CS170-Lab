@@ -81,6 +81,16 @@ void RequestGenerator::
 enqueueStops(int num)
 {
     // TODO: Your code here.
+    // imitate the enqueueTasks, generating stop requests
+    taskCount = 0;
+    while (taskCount < num || num < 0)
+    {
+        Task stop_task;
+        stop_task.arg = NULL;      
+        stop_task.handler = stop_handler;
+        this->taskQueue->enqueue(stop_task);
+        taskCount++;
+    }
 }
 
 SupplierRequestGenerator::
