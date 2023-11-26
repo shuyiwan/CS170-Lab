@@ -66,8 +66,6 @@ start(void)
 
 	// Set up hardware (x86.c)
 	segments_init();
-
-        zero = 202 / zero;
 	interrupt_controller_init(0);
 	console_clear();
 
@@ -161,7 +159,6 @@ interrupt(registers_t *reg)
 		schedule();
 
 	default:
-                zero = 202 / zero;
 		while (1)
 			/* do nothing */;
 

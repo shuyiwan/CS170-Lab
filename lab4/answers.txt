@@ -1,5 +1,5 @@
-Name:
-PERM #:
+Name: Shuyi Wan
+PERM #: 8097610
 
 Collaborators (who you talked to about the lab, what you talked about):
 
@@ -15,41 +15,122 @@ Other acknowledgments:
 Part 1:
 
 Exercise 1:
+What does command do: Search all files in the lab3 directory and all other subdirectory
+recursively and print out each line that contains the term "smutex".
 
+First few lines:
+./EStore.cpp:    smutex_init(&this->mutex);
+./EStore.cpp:            smutex_init(&this->mutexes[i]);
+./EStore.cpp:    smutex_destroy(&this->mutex);
+./EStore.cpp:            smutex_destroy(&this->mutexes[i]);
+./EStore.cpp:    smutex_lock(&this->mutex);
+./EStore.cpp:        smutex_unlock(&this->mutex);
+./EStore.cpp:    smutex_unlock(&this->mutex);
+./EStore.cpp:        smutex_lock(&this->mutexes[item_id]);
+./EStore.cpp:            smutex_unlock(&this->mutexes[item_id]);
+./EStore.cpp:            smutex_unlock(&this->mutexes[item_id]);
+./EStore.cpp:        smutex_unlock(&this->mutexes[item_id]);
+./EStore.cpp:        smutex_lock(&this->mutexes[item_id]);
 
 Exercise 2:
-
+1. grep "Task" RequestGenerator.cpp
+2. grep "return" *.h
 
 Exercise 3:
+What types of lines are returned by the program? 
+By the given regular expression "smutex.*(.*);", the program will 
+searches recursively within the current directory and its subdirectories and return
+each line that contains the term "smutex" followed by any sequence of characters because of ".*",
+then followed by parentheses "()" that contains any sequence of characters ".*" again.
+And finally follwed by the semicolon ";".
+for example: smutex_lock(&this->mutex);
+
+What information does this command give you about your code?
+It searches any function calls that related to smutex.
 
 
 Exercise 4:
+1 #    "include/linux/sched.h"        line 3082
+2 %a   "include/linux/blkdev.h"       line 1598
 
+Exercise 5:
+optional priority inheritance state
+3 #    "kernel/futex.c"               line 198
+/*
+ * Priority Inheritance state:
+ */
+struct futex_pi_state {
+        /*
+         * list of 'owned' pi_state instances - these have to be
+         * cleaned up in do_exit() if the task exits prematurely:
+         */
+        struct list_head list;
 
-Exercise 5: 
+        /*
+         * The PI object:
+         */
+        struct rt_mutex pi_mutex;
+
+        struct task_struct *owner;
+        atomic_t refcount;
+
+        union futex_key key;
+};
 
 
 Exercise 6: 
-
+1 F   f    proc_sched_autogroup_show_task  kernel/sched/auto_group.c
+               typeref:typename:void
+               void proc_sched_autogroup_show_task(struct task_struct *p, struct seq_file *m)
+2 F   f    proc_sched_set_task             kernel/sched/debug.c
+               typeref:typename:void
+               void proc_sched_set_task(struct task_struct *p)
+3 F   f    proc_sched_show_task            kernel/sched/debug.c
+               typeref:typename:void
+               void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 
 Exercise 7: 
-
+Use: find . -name "*.h" | wc -l
+output: 3915
 
 Part 2:
 (Exercise 8 is a coding exercise)
 
 
 Exercise 9:
+In the list_size(), the function goes:
 
+int list_size(const list_t *h) {
+    node_t *p = *h;
+    int r = 0;
+    do {
+        r += 1;
+        p = p->next;
+    }while (p);
+    return r;
+}
+
+because p could be null, so when do p = p->next, there will be segmentation fault.
+To fix it, we change do while loop to while loop, check the following:
+
+int list_size(const list_t *h) {
+    node_t *p = *h;
+    int r = 0;
+    while (p) {
+        r += 1;
+        p = p->next;
+    }
+    return r;
+}
 
 Exercise 10:
-
+skip
 
 Exercise 11:
-
+skip
 
 Exercise 12:
-
+skip
 
 (Exercise 13 is a coding exercise)
 
@@ -59,7 +140,7 @@ Part 3:
 
 Exercise 14:
 
-The name of the scheduling algorithm is:
+The name of the scheduling algorithm is: round-robin
 
 
 (Exercise 15 is a coding exercise)
@@ -68,19 +149,35 @@ The name of the scheduling algorithm is:
 Exercise 16:
 
 Average turnaround time for scheduling_algorithm 0:
+process1 finished: after print 1280 - 3 letters
+process2 finished: after print 1280 - 2 letters
+process3 finished: after print 1280 - 1 letters
+process4 finished: after print 1280 letters
+average: (1277 + 1278 + 1279 + 1280) / 4 = 1278.5ms
+
 Average turnaround time for scheduling_algorithm 1:
+process1 finished: after print 320 letters
+process2 finished: after print 640 letters
+process3 finished: after print 960 letters
+process4 finished: after print 1280 letters
+average: (320 + 640 + 960 + 1280) / 4 = 800ms
 
 Average response time for scheduling_algorithm 0:
-Average response time for scheduling_algorithm 1:
+(0 + 1 + 2 + 3) / 4 = 1.5ms
 
+Average response time for scheduling_algorithm 1:
+(0 + 320 + 680 + 960) / 4 = 480ms
 
 Exercise 17:
 
-Did you complete Exercise 17A, Exercise 17B, or both?
+Did you complete Exercise 17A, Exercise 17B, or both? 17A
 
 
 Exercise 18:
-
+In the line3 in the picture, there is 1234 234 where "1" was not printed.
+So Process 1 was interrupted during execution, this may be assumed 
+because result process 1 was unable to print during round robin scheduling cycle
+by interrupt.
 
 (Exercise 19 is a coding exercise)
 
