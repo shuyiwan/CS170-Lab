@@ -14,6 +14,26 @@
 #define RUNCOUNT	320
 
 
+
+/*****************************************************************************
+ * sys_setpriority
+ *
+ *   set priority to processes
+ *   
+ *   
+ *
+ *****************************************************************************/
+
+static inline void
+sys_priority(int priority)
+{
+	asm volatile("int %0\n"
+		     : : "i" (INT_SYS_PRIORITY),
+		         "a" (priority)
+		     : "cc", "memory");
+}
+
+
 /*****************************************************************************
  * sys_yield
  *

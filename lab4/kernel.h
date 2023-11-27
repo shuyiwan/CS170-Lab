@@ -28,6 +28,7 @@ typedef struct process {
 					// stack location, EIP, etc.
 					// 'registers_t' defined in x86.h
 
+	int p_priority;                   // set priority check
 	procstate_t p_state;		// Process state; see above
 	int p_exit_status;		// Process's exit status
 } process_t;

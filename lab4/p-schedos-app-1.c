@@ -18,9 +18,17 @@
 #define PRINTCHAR	('1' | 0x0C00)
 #endif
 
+// set priority
+#ifndef PRIORITY
+#define PRIORITY 5
+#endif
+
 void
 pmain(void)
 {
+	sys_priority(PRIORITY);
+	sys_yield();
+	
 	int i;
 
 	for (i = 0; i < RUNCOUNT; i++) {
@@ -31,5 +39,5 @@ pmain(void)
 
 	// Yield forever.
 	while (1)
-		sys_yield();
+		sys_exit(0);
 }

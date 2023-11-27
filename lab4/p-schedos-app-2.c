@@ -6,5 +6,5 @@
  *****************************************************************************/
 
 #define PRINTCHAR	('2' | 0x0A00)
-
+#define PRIORITY 3
 #include "p-schedos-app-1.c"
