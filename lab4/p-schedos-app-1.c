@@ -33,7 +33,9 @@ pmain(void)
 
 	for (i = 0; i < RUNCOUNT; i++) {
 		// Write characters to the console, yielding after each one.
+		sys_lock_acquire();
 		*cursorpos++ = PRINTCHAR;
+		sys_lock_release();
 		sys_yield();
 	}
 

@@ -15,11 +15,15 @@
 #define INT_SYS_YIELD		48
 #define INT_SYS_EXIT		49
 #define INT_SYS_PRIORITY	50
-#define INT_SYS_USER2		51
+#define INT_SYS_LOCK		51
+#define INT_SYS_UNLOCK	52
 
 
 // The current screen cursor position (stored at memory location 0x198000).
 
+extern uint32_t volatile mutex; // lock
+
 extern uint16_t * volatile cursorpos;
+
 
 #endif

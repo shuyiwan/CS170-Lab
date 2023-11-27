@@ -66,7 +66,7 @@ start(void)
 
 	// Set up hardware (x86.c)
 	segments_init();
-	interrupt_controller_init(0);
+	interrupt_controller_init(1);
 	console_clear();
 
 	// Initialize process descriptors as empty
@@ -94,12 +94,15 @@ start(void)
 		proc->p_state = P_RUNNABLE;
 	}
 
+	// set the mutex
+	mutex = 1;
+
 	// Initialize the cursor-position shared variable to point to the
 	// console's first character (the upper left).
 	cursorpos = (uint16_t *) 0xB8000;
 
 	// Initialize the scheduling algorithm.
-	scheduling_algorithm = 2;
+	scheduling_algorithm = 0;
 
 	// Switch to the first process.
 	run(&proc_array[1]);
@@ -145,14 +148,19 @@ interrupt(registers_t *reg)
 	case INT_SYS_PRIORITY:
 		// 'sys_user*' are provided for your convenience, in case you
 		// want to add a system call.
-		/* Your code here (if you want). */
 		current->p_priority = current->p_registers.reg_eax;
 		run(current);
 
-	case INT_SYS_USER2:
-		/* Your code here (if you want). */
+	case INT_SYS_LOCK:
+		// mutex set to 0. locked. And schedule other process
+		// wait for the process that holds the lock to finish
+		while(mutex == 0) schedule();
+		mutex = 0;
 		run(current);
-
+	
+	case INT_SYS_UNLOCK:
+		mutex = 1;
+	
 	case INT_CLOCK:
 		// A clock interrupt occurred (so an application exhausted its
 		// time quantum).
