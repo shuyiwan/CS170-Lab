@@ -2,6 +2,7 @@ Name: Shuyi Wan
 PERM #: 8097610
 
 Collaborators (who you talked to about the lab, what you talked about):
+Talk with Yicong Yan about initialization of mutex in ex.19
 
 
 Source material that you consulted:
@@ -50,12 +51,12 @@ It searches any function calls that related to smutex.
 
 
 Exercise 4:
-1 #    "include/linux/sched.h"        line 3082
+
 2 %a   "include/linux/blkdev.h"       line 1598
 
 Exercise 5:
 optional priority inheritance state
-3 #    "kernel/futex.c"               line 198
+3 #    "kernel/futex.c"               line 188
 /*
  * Priority Inheritance state:
  */
@@ -166,7 +167,7 @@ Average response time for scheduling_algorithm 0:
 (0 + 1 + 2 + 3) / 4 = 1.5ms
 
 Average response time for scheduling_algorithm 1:
-(0 + 320 + 680 + 960) / 4 = 480ms
+(0 + 320 + 640 + 960) / 4 = 480ms
 
 Exercise 17:
 
@@ -183,5 +184,3 @@ by interrupt.
 
 
 Anything else you'd like us to know:
-
-
