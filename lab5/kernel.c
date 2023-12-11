@@ -117,6 +117,8 @@ void kernel(const char* command) {
     //    that "belongs" to the kernel is virtual addresses
     //    [0,PROC_START_ADDR). This is indicated in the lab description,
     //    and we repeat it in this hint.
+    virtual_memory_map(kernel_pagetable, 0, 0, PROC_START_ADDR, PTE_P | PTE_W);
+    virtual_memory_map(kernel_pagetable, (uintptr_t)console, (uintptr_t)console, PAGESIZE, PTE_P | PTE_W | PTE_U);
 
     if (command && strcmp(command, "fork") == 0)
         process_setup(1, 4);
@@ -130,6 +132,60 @@ void kernel(const char* command) {
     run(&processes[1]);
 }
 
+// find the next available page
+uintptr_t find_available_page_number() 
+{
+    for (int i = 0; i < NPAGES; i++)
+    {
+        if (pageinfo[i].owner == PO_FREE) 
+        {
+            // #define PAGEADDRESS(pn) ((uintptr_t) (pn) << PAGESHIFT)
+            return PAGEADDRESS(i);
+        }
+    }
+    
+    return -1;
+}
+
+
+x86_pagetable *allocate_page_table(int8_t owner)
+{
+    uintptr_t available_phy_address = find_available_page_number();
+
+    if (available_phy_address == -1) 
+    {
+        return NULL;
+    }
+
+    if (physical_page_alloc(available_phy_address, owner) == 0) 
+    {
+        return (x86_pagetable *)available_phy_address;
+    }    
+
+    return NULL;
+}
+
+x86_pagetable *copy_pagetable(x86_pagetable* pagetable, int8_t owner)
+{
+    x86_pagetable *level_one_table = allocate_page_table(owner);
+    x86_pagetable *level_two_table = allocate_page_table(owner);
+    if (!level_one_table || !level_two_table)
+    {
+        panic("failed to allocate page table");
+    }
+
+    // The level-1 page table is all 0, except that pagetable->entry[0] should equal
+    // (x86_pageentry_t) address_of_new_l2_pagetable | PTE_P | PTE_W | PTE_U.
+    memset(level_one_table, 0, PAGESIZE);
+    level_one_table->entry[0] = (x86_pageentry_t)level_two_table | PTE_P | PTE_W | PTE_U;
+    // The initial mappings for addresses less than PROC_START_ADDR 
+    // should be copied from those in kernel_pagetable.
+    memset(level_two_table, 0, PAGESIZE);
+    memcpy(level_two_table, (x86_pagetable *)PTE_ADDR(pagetable->entry[0]), sizeof(x86_pagetable));
+
+    return level_one_table;
+}
+
 
 // process_setup(pid, program_number)
 //    Load application program `program_number` as process number `pid`.
@@ -140,18 +196,22 @@ void process_setup(pid_t pid, int program_number) {
     process_init(&processes[pid], 0);
 
     // Exercise 2: your code here
-    processes[pid].p_pagetable = kernel_pagetable;
-    ++pageinfo[PAGENUMBER(kernel_pagetable)].refcount;
+    processes[pid].p_pagetable = copy_pagetable(kernel_pagetable, pid);
+    virtual_memory_map(processes[pid].p_pagetable, PROC_START_ADDR, PROC_START_ADDR, MEMSIZE_PHYSICAL - PROC_START_ADDR, PTE_W | PTE_U);
+
     int r = program_load(&processes[pid], program_number);
     assert(r >= 0);
 
     // Exercise 4: your code here
-    processes[pid].p_registers.reg_esp = PROC_START_ADDR + PROC_SIZE * pid;
+    processes[pid].p_registers.reg_esp = MEMSIZE_VIRTUAL;
     uintptr_t stack_page = processes[pid].p_registers.reg_esp - PAGESIZE;
-    physical_page_alloc(stack_page, pid);
-    virtual_memory_map(processes[pid].p_pagetable, stack_page, stack_page,
-                       PAGESIZE, PTE_P|PTE_W|PTE_U);
-    processes[pid].p_state = P_RUNNABLE;
+    uintptr_t free_phy_page = find_available_page_number();
+    // physical_page_alloc(stack_page, pid);
+    if (free_phy_page != -1 && physical_page_alloc(free_phy_page, pid) == 0){
+        virtual_memory_map(processes[pid].p_pagetable, stack_page, free_phy_page,
+                        PAGESIZE, PTE_P|PTE_W|PTE_U);
+        processes[pid].p_state = P_RUNNABLE;
+    }
 }
 
 
@@ -230,13 +290,28 @@ void exception(x86_registers* reg) {
         //   sys_page_alloc should not be able to map a page to virtual address
         //   under PROC_START_ADDR or to the page right before MEMSIZE_VIRTUAL
         //   (which would be used as the process's stack later)
+        if (addr < PROC_START_ADDR || addr == MEMSIZE_VIRTUAL - 1) 
+        {
+            panic("Invalid page address");
+            break;
+        }
 
 
         // Exercise 3: your code here
-        int r = physical_page_alloc(addr, current->p_pid);
+        int r = -1;
+	    uintptr_t available_phy_page = find_available_page_number();
+        if (available_phy_page != 0 && physical_page_alloc(available_phy_page, current->p_pid) == 0) 
+        {
+            r = 0;
+        }
+
         if (r >= 0)
-            virtual_memory_map(current->p_pagetable, addr, addr,
-                               PAGESIZE, PTE_P|PTE_W|PTE_U);
+            virtual_memory_map(current->p_pagetable, addr, addr, PAGESIZE, PTE_P|PTE_W|PTE_U);
+
+        else
+        {      
+            debug_printf("%s", "Out of physical memory!");
+        }
         current->p_registers.reg_eax = r;
         break;
     }
