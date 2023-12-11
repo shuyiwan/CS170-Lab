@@ -367,8 +367,9 @@ int fork(void) {
         return -1;
 
     // Exercise 5: your code here
-    processes[pid].p_pagetable = copy_pagetable(current->p_pagetable, pid);
     uintptr_t virtual_address;
+    processes[pid].p_pagetable = copy_pagetable(current->p_pagetable, pid);
+    
 
     for (virtual_address = PROC_START_ADDR; virtual_address <= MEMSIZE_VIRTUAL; virtual_address += PAGESIZE) 
     {
@@ -377,7 +378,7 @@ int fork(void) {
         // verify the permission bit
         if (virtual_address_mapping.perm & PTE_W) {
             uintptr_t available_phy_address = find_available_page_address();
-
+            // check the availability of pages
             if (available_phy_address != 0 && physical_page_alloc(available_phy_address, pid) == 0) 
             {
                 memcpy((uintptr_t *)available_phy_address, (uintptr_t *)PAGEADDRESS(virtual_address_mapping.pn), PAGESIZE);
