@@ -367,6 +367,24 @@ int fork(void) {
         return -1;
 
     // Exercise 5: your code here
+    processes[pid].p_pagetable = copy_pagetable(current->p_pagetable, pid);
+    uintptr_t virtual_address;
+
+    for (virtual_address = PROC_START_ADDR; virtual_address <= MEMSIZE_VIRTUAL; virtual_address += PAGESIZE) 
+    {
+        if (virtual_address == (uintptr_t)console) continue;
+        vamapping virtual_address_mapping = virtual_memory_lookup(processes[pid].p_pagetable, virtual_address);
+        // verify the permission bit
+        if (virtual_address_mapping.perm & PTE_W) {
+            uintptr_t available_phy_address = find_available_page_address();
+
+            if (available_phy_address != 0 && physical_page_alloc(available_phy_address, pid) == 0) 
+            {
+                memcpy((uintptr_t *)available_phy_address, (uintptr_t *)PAGEADDRESS(virtual_address_mapping.pn), PAGESIZE);
+                virtual_memory_map(processes[pid].p_pagetable, virtual_address, available_phy_address, PAGESIZE, PTE_P | PTE_W | PTE_U);
+            }
+        }
+    }
 
     processes[pid].p_registers = current->p_registers;
     processes[pid].p_registers.reg_eax = 0;
