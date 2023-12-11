@@ -133,26 +133,27 @@ void kernel(const char* command) {
 }
 
 // find the next available page
-uintptr_t find_available_page_number() 
+uintptr_t find_available_page_address() 
 {
     for (int i = 0; i < NPAGES; i++)
     {
         if (pageinfo[i].owner == PO_FREE) 
         {
             // #define PAGEADDRESS(pn) ((uintptr_t) (pn) << PAGESHIFT)
+	    // find page number then transfer to address
             return PAGEADDRESS(i);
         }
     }
     
-    return -1;
+    return 0;
 }
 
 
 x86_pagetable *allocate_page_table(int8_t owner)
 {
-    uintptr_t available_phy_address = find_available_page_number();
+    uintptr_t available_phy_address = find_available_page_address();
 
-    if (available_phy_address == -1) 
+    if (available_phy_address == 0) 
     {
         return NULL;
     }
@@ -205,9 +206,9 @@ void process_setup(pid_t pid, int program_number) {
     // Exercise 4: your code here
     processes[pid].p_registers.reg_esp = MEMSIZE_VIRTUAL;
     uintptr_t stack_page = processes[pid].p_registers.reg_esp - PAGESIZE;
-    uintptr_t free_phy_page = find_available_page_number();
+    uintptr_t free_phy_page = find_available_page_address();
     // physical_page_alloc(stack_page, pid);
-    if (free_phy_page != -1 && physical_page_alloc(free_phy_page, pid) == 0){
+    if (free_phy_page != 0 && physical_page_alloc(free_phy_page, pid) == 0){
         virtual_memory_map(processes[pid].p_pagetable, stack_page, free_phy_page,
                         PAGESIZE, PTE_P|PTE_W|PTE_U);
         processes[pid].p_state = P_RUNNABLE;
@@ -299,19 +300,18 @@ void exception(x86_registers* reg) {
 
         // Exercise 3: your code here
         int r = -1;
-	    uintptr_t available_phy_page = find_available_page_number();
-        if (available_phy_page != 0 && physical_page_alloc(available_phy_page, current->p_pid) == 0) 
+	uintptr_t available_phy_address = find_available_page_address();
+        if (available_phy_address != 0 && physical_page_alloc(available_phy_address, current->p_pid) == 0) 
         {
             r = 0;
         }
 
-        if (r >= 0)
-            virtual_memory_map(current->p_pagetable, addr, addr, PAGESIZE, PTE_P|PTE_W|PTE_U);
-
-        else
-        {      
+        if (r == 0){
+            virtual_memory_map(current->p_pagetable, addr, available_phy_address, PAGESIZE, PTE_P|PTE_W|PTE_U);}
+        else{      
             debug_printf("%s", "Out of physical memory!");
         }
+
         current->p_registers.reg_eax = r;
         break;
     }
